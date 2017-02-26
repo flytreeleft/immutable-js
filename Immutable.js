@@ -3,6 +3,7 @@ import isPrimitive from './utils/isPrimitive';
 import isNullOrUndefined from './utils/isNullOrUndefined';
 import isEnumerable from './utils/isEnumerable';
 import createNE from './utils/createNE';
+import guid, {GUID_SENTINEL} from './utils/guid';
 
 /**
  * 功能特性：
@@ -13,27 +14,46 @@ import createNE from './utils/createNE';
  * - 支持循环引用结构，并确保结构不丢失
  */
 
-export const IMMUTABLE_TOP_KEY = '__[IMMUTABLE_TOP_KEY]__';
-export const IMMUTABLE_TOP_PARENT = '__[IMMUTABLE_TOP_PARENT]__';
-export const IMMUTABLE_TOP_PATH = '__[IMMUTABLE_TOP_PATH]__';
+const IMMUTABLE_PATH_LINK = '__[IMMUTABLE_PATH_LINK]__';
 
 /**
  * @param {*} obj
- * @param {Immutable} [topParent]
- * @param {String} [topKey]
  */
-function createImmutable(obj, topParent, topKey) {
+function createImmutable(obj) {
     if (isImmutable(obj)) {
         return obj;
     }
 
+    // Make sure the guid was bound to `obj`.
+    const objGUID = guid(obj);
     const isArrayObj = isArray(obj);
+    // NOTE: Do not record current obj's path link.
+    // Because the same immutable object may be referenced more than once.
+    const objPathLink = {};
+
+    function bindValue(obj, value, key, enumerable) {
+        // TODO Enable writing, but throw exception and suggestion in setter?
+        Object.defineProperty(obj, key, {
+            enumerable: enumerable,
+            value: value
+        });
+
+        // Record current path link and merge path link of value.
+        if (!isPrimitive(value)) {
+            objPathLink[guid(value)] = Object.freeze({
+                top: guid(obj),
+                path: key
+            });
+
+            if (value[IMMUTABLE_PATH_LINK]) {
+                Object.assign(objPathLink, value[IMMUTABLE_PATH_LINK]());
+            }
+        }
+    }
 
     const privateMethods = {
-        // [IMMUTABLE_TOP_KEY]: topKey,
-        // [IMMUTABLE_TOP_PARENT]: topParent,
-        [IMMUTABLE_TOP_PATH]: function () {
-            return topParent ? topParent[IMMUTABLE_TOP_PATH].concat(topKey) : [];
+        [IMMUTABLE_PATH_LINK]: function () {
+            return Object.assign({}, objPathLink);
         }
     };
 
@@ -87,22 +107,22 @@ function createImmutable(obj, topParent, topKey) {
         isArrayObj ? arrayMethods : objectMethods
     );
     let immutableProto = Object.create(Immutable.prototype, createNE(methods));
+    let immutableObj = Object.create(immutableProto);
+    let reservedKeys = [GUID_SENTINEL];
+    let objKeys = Object.keys(obj).concat(isArrayObj ? ['length'] : []);
 
-    const immutableObj = Object.create(immutableProto);
-    Object.keys(obj)
-          .concat(isArrayObj ? ['length'] : [])
-          .forEach((key) => {
-              var value = obj[key];
-              var enumerable = isEnumerable(obj, key);
-              // TODO Cycle reference value?
-              var immutableValue = createImmutable(value, immutableObj, key);
+    // NOTE: Make sure GUID was bound at first.
+    reservedKeys
+        .concat(objKeys)
+        .forEach((key) => {
+            var value = obj[key];
+            var enumerable = isEnumerable(obj, key);
+            // TODO Cycle reference value?
+            var immutableValue = createImmutable(value);
 
-              // TODO Enable writing, but throw exception and suggestion in setter?
-              Object.defineProperty(immutableObj, key, {
-                  enumerable: enumerable,
-                  value: immutableValue
-              });
-          });
+            bindValue(immutableObj, immutableValue, key, enumerable);
+        });
+
     // Not allow to add new properties or remove, change the existing properties.
     return Object.freeze(immutableObj);
 }
@@ -117,7 +137,7 @@ Immutable.create = (obj) => createImmutable(obj);
 export function isImmutable(obj) {
     return isNullOrUndefined(obj)
            || isPrimitive(obj)
-           // Frozen object should be convert to Immutable object
+           // Frozen object should be convert to Immutable object also.
            // || Object.isFrozen(obj)
            || obj instanceof Immutable
            || obj.constructor === Immutable;

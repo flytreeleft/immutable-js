@@ -1,4 +1,8 @@
 import Immutable, {isImmutable} from './Immutable';
+import guid from './utils/guid';
 
-export {isImmutable};
+export {
+    guid,
+    isImmutable
+};
 export default Immutable;
