@@ -1,5 +1,6 @@
 import isNullOrUndefined from './isNullOrUndefined';
+import isFunction from './isFunction';
 
 export default function (obj) {
-    return !isNullOrUndefined(obj) && obj.valueOf instanceof Function ? obj.valueOf() : obj;
+    return !isNullOrUndefined(obj) && isFunction(obj.valueOf) ? obj.valueOf() : obj;
 }

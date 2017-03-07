@@ -3,7 +3,7 @@ export function isNull(obj) {
 }
 
 export function isUndefined(obj) {
-    return obj === undefined || typeof obj === 'undefined';
+    return typeof obj === 'undefined';
 }
 
 export default function isNullOrUndefined(obj) {
