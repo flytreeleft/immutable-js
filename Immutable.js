@@ -74,7 +74,7 @@ function createImmutable(obj, options = {}) {
                 top: guid(obj),
                 path: key
             });
-
+            // TODO Check if cycle reference existing? Different path but same guid.
             if (value[IMMUTABLE_PATH_LINK]) {
                 Object.assign(objPathLink, value[IMMUTABLE_PATH_LINK]());
             }
@@ -138,9 +138,39 @@ function createImmutable(obj, options = {}) {
             return this;
         },
         isArray: () => isArrayObj,
-        isDate: () => hasOwn(processedObj, IMMUTABLE_DATE),
-        isRegExp: () => hasOwn(processedObj, IMMUTABLE_REGEXP),
-        isCycleRef: () => hasOwn(processedObj, IMMUTABLE_CYCLE_REF),
+        isDate: function () {
+            return hasOwn(this, IMMUTABLE_DATE);
+        },
+        isRegExp: function () {
+            return hasOwn(this, IMMUTABLE_REGEXP);
+        },
+        isCycleRef: function () {
+            return hasOwn(this, IMMUTABLE_CYCLE_REF);
+        },
+        equals: function () {
+        },
+        path: function () {
+        },
+        has: function () {
+        },
+        get: function () {
+        },
+        set: function () {
+        },
+        update: function () {
+        },
+        merge: function () {
+        },
+        mergeDeep: function () {
+        },
+        remove: function () {
+        },
+        clear: function () {
+        },
+        find: function () {
+        },
+        filter: function () {
+        },
         forEach: function () {
         },
         map: function () {
@@ -164,9 +194,25 @@ function createImmutable(obj, options = {}) {
         },
         concat: function () {
         },
+        insert: function () {
+        },
         sort: function () {
         },
         reverse: function () {
+        },
+        first: function () {
+        },
+        last: function () {
+        },
+        at: function () {
+        },
+        findIndex: function () {
+        },
+        size: function () {
+            return this.length;
+        },
+        isEmpty: function () {
+            return this.size() === 0;
         }
     };
 
@@ -207,6 +253,10 @@ function Immutable() {
 Immutable.create = (obj, options) => createImmutable(obj, options);
 // TODO 1. 返回diff格式的差异，以path为键值；2. 比较path link的增删节点；3. 比较相同id的immutable的属性是否存在差异，但不做深度比较
 Immutable.diff = (source, other) => ({});
+/**
+ * Value equality check with semantics similar to `Object.is`.
+ */
+Immutable.is = (source, other) => ({});
 
 export function isImmutable(obj) {
     return isNullOrUndefined(obj)
