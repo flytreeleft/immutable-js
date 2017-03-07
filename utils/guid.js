@@ -19,6 +19,10 @@ function bind(obj, id) {
     return obj;
 }
 
+function canBind(obj) {
+    return !!obj && ['function', 'object'].indexOf(typeof obj) >= 0;
+}
+
 /**
  * Get or bind a global unique id.
  *
@@ -28,13 +32,13 @@ function bind(obj, id) {
  *          otherwise, return the id bound to `obj`.
  */
 export default function (obj, id) {
-    if (typeof obj !== 'object') {
+    if (!canBind(obj)) {
         return null;
     }
 
     var value = valueOf(obj);
     var isBinding = !!id;
-    var boundId = obj[GUID_SENTINEL] || (typeof value === 'object' && value[GUID_SENTINEL]);
+    var boundId = obj[GUID_SENTINEL] || (canBind(value) && value[GUID_SENTINEL]);
 
     if (!boundId || isBinding) {
         bind(obj, isBinding ? id : (boundId = next()));
