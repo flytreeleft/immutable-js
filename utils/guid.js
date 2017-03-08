@@ -7,7 +7,7 @@ function next() {
                             .substr(0, ID_LENGTH);
 }
 
-export const GUID_SENTINEL = '__[GLOBAL_UNIQUE_ID]__';
+export const GUID_SENTINEL = '[[GlobalUniqueID]]';
 function bind(obj, id) {
     Object.defineProperty(obj, GUID_SENTINEL, {
         writable: false,
