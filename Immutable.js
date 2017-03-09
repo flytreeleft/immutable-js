@@ -45,7 +45,7 @@ const IMMUTABLE_REGEXP = '[[ImmutableRegExp]]';
  *          e.g. `toPlain: (fn) => ({$fn: 'function name'})`,
  *          `toPlain: (obj) => Object.assign({$class: 'complex class name'}, obj)`
  */
-function createImmutable(obj, options = {}) {
+function createImmutable(obj, options = {}/*, rootPathLink*/) {
     if (isImmutable(obj)) {
         return obj;
     }
@@ -198,7 +198,7 @@ function createImmutable(obj, options = {}) {
          */
         has: function (node) {
             var nodeGUID = isPrimitive(node) ? node : guid(node);
-            return contains(nodeGUID);
+            return contains(nodeGUID) || nodeGUID === objGUID;
         },
         /**
          * Get the target immutable node by the specified path.
@@ -289,9 +289,16 @@ function createImmutable(obj, options = {}) {
 
             return createInnerImmutable(root);
         },
-        /** Clear all properties or elements, and return empty immutable array or object. */
+        /**
+         * Clear all properties or elements, and return empty immutable array or object.
+         *
+         * @return {Immutable} The immutable array or object with the same GUID with `this`.
+         */
         clear: function () {
-            return createInnerImmutable(this.isArray() ? [] : {});
+            var target = this.isArray() ? [] : {};
+            guid(target, objGUID);
+
+            return createInnerImmutable(target);
         },
         /**
          * Find the matched node.
@@ -459,6 +466,7 @@ function createImmutable(obj, options = {}) {
             }
 
             var enumerable = isEnumerable(processedObj, key);
+            // TODO 需解决纵向循环引用问题
             var immutableValue = createInnerImmutable(value, rootPathLink || objPathLink);
             bindValue(immutableObj, immutableValue, key, enumerable);
         });
