@@ -36,7 +36,7 @@ const IMMUTABLE_CYCLE_REF = '[[ImmutableCycleRef]]';
 const IMMUTABLE_DATE = '[[ImmutableDate]]';
 const IMMUTABLE_REGEXP = '[[ImmutableRegExp]]';
 
-function createImmutable(obj, options = {}/*, rootPathLink*/) {
+function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
     if (isImmutable(obj)) {
         return obj;
     }
@@ -45,16 +45,19 @@ function createImmutable(obj, options = {}/*, rootPathLink*/) {
     const objGUID = guid(obj);
     // NOTE: Do not record current obj's path link.
     // Because the same immutable object may be referenced more than once.
-    const rootPathLink = arguments[2];
+    const rootObjPathLink = arguments[2];
+    const rootObjGUID = arguments[3];
     const objPathLink = {};
 
     // Hold current node in the root path link to
     // detect the cycle reference in the depth direction at root node.
-    rootPathLink && (rootPathLink[objGUID] = {});
+    rootObjPathLink && (rootObjPathLink[objGUID] = {});
 
     function isCycleRefTo(target) {
         var targetGUID = guid(target);
-        return !!objPathLink[targetGUID] || (!!rootPathLink && rootPathLink[targetGUID]);
+        return contains(targetGUID) /* cross cycle reference check */
+               || targetGUID === rootObjGUID /* root cycle reference check */
+               || (!!rootObjPathLink && rootObjPathLink[targetGUID]) /* depth cycle reference check */;
     }
 
     function bindValue(obj, value, key, enumerable) {
@@ -77,7 +80,7 @@ function createImmutable(obj, options = {}/*, rootPathLink*/) {
     }
 
     function contains(guid) {
-        return !!objPathLink[guid];
+        return !!objPathLink[guid] || guid === objGUID;
     }
 
     function getPath(guid) {
@@ -98,7 +101,9 @@ function createImmutable(obj, options = {}/*, rootPathLink*/) {
 
     const globalOpts = options;
     const toPlain = globalOpts.toPlain;
-    const createInnerImmutable = (obj, rootPathLink) => createImmutable(obj, globalOpts, rootPathLink);
+    const createInnerImmutable = (obj, rootPathLink, rootGUID) => {
+        return createImmutable(obj, globalOpts, rootPathLink, rootGUID);
+    };
     const isPlainObj = isPlainObject(obj);
     const isArrayObj = isArray(obj);
     const isDateObj = isDate(obj);
@@ -193,7 +198,7 @@ function createImmutable(obj, options = {}/*, rootPathLink*/) {
          */
         has: function (node) {
             var nodeGUID = isPrimitive(node) ? node : guid(node);
-            return contains(nodeGUID) || nodeGUID === objGUID;
+            return contains(nodeGUID);
         },
         /**
          * Get the target immutable node by the specified path.
@@ -461,7 +466,7 @@ function createImmutable(obj, options = {}/*, rootPathLink*/) {
             }
 
             var enumerable = isEnumerable(processedObj, key);
-            var immutableValue = createInnerImmutable(value, rootPathLink || objPathLink);
+            var immutableValue = createInnerImmutable(value, rootObjPathLink || objPathLink, rootObjGUID || objGUID);
             bindValue(immutableObj, immutableValue, key, enumerable);
         });
 
