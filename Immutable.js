@@ -36,15 +36,6 @@ const IMMUTABLE_CYCLE_REF = '[[ImmutableCycleRef]]';
 const IMMUTABLE_DATE = '[[ImmutableDate]]';
 const IMMUTABLE_REGEXP = '[[ImmutableRegExp]]';
 
-/**
- * @param {*} obj
- * @param {Object} [options={}]
- * @param {Function} [options.toPlain]
- *          A plain object converter(Signature: `(value: [Function/Object]) => Object`)
- *          for Function and Complex Object.
- *          e.g. `toPlain: (fn) => ({$fn: 'function name'})`,
- *          `toPlain: (obj) => Object.assign({$class: 'complex class name'}, obj)`
- */
 function createImmutable(obj, options = {}/*, rootPathLink*/) {
     if (isImmutable(obj)) {
         return obj;
@@ -478,12 +469,53 @@ function createImmutable(obj, options = {}/*, rootPathLink*/) {
     return Object.freeze(immutableObj);
 }
 
+function isImmutable(obj) {
+    return isNullOrUndefined(obj)
+           || isPrimitive(obj)
+           // Frozen object should be convert to Immutable object also.
+           // || Object.isFrozen(obj)
+           || Immutable.isInstance(obj);
+}
+
 function Immutable() {
     // Just an immutable constructor, no business logic.
     throw new Error('new Immutable() or Immutable() isn\'t supported,'
                     + ' please use Immutable.create() to create an immutable object.');
 }
+
 /**
+ * Bind GUID to `obj` or get the GUID bound to `obj`.
+ *
+ * @param {Object} obj
+ * @param {String} [id] A custom id which will be bound to `obj`.
+ * @return {String/Object} Return `obj` if the parameter `id` was specified,
+ *          otherwise, return the id bound to `obj`.
+ */
+Immutable.guid = guid;
+/**
+ * Check whether `obj` is immutable or not.
+ *
+ * NOTE: `null`, `undefined` or any primitive are immutable too.
+ *
+ * @param {*} obj
+ */
+Immutable.isImmutable = isImmutable;
+/**
+ * Check whether `obj` is an instance of {@link Immutable} or not.
+ *
+ * @param {*} obj
+ */
+Immutable.isInstance = (obj) => obj && (obj instanceof Immutable || obj.constructor === Immutable);
+/**
+ * Create {@link Immutable} instance of `obj`.
+ *
+ * @param {*} obj
+ * @param {Object} [options={}]
+ * @param {Function} [options.toPlain]
+ *          A plain object converter(Signature: `(value: [Function/Object]) => Object`)
+ *          for Function and Complex Object.
+ *          e.g. `toPlain: (fn) => ({$fn: 'function name'})`,
+ *          `toPlain: (obj) => Object.assign({$class: 'complex class name'}, obj)`
  * @return {Immutable} Return an immutable object, or Array-like immutable object when `obj` is an array.
  */
 Immutable.create = (obj, options) => createImmutable(obj, options);
@@ -493,14 +525,5 @@ Immutable.diff = (source, other) => ({});
  * Value equality check with semantics similar to `Object.is`.
  */
 Immutable.is = (source, other) => ({});
-
-export function isImmutable(obj) {
-    return isNullOrUndefined(obj)
-           || isPrimitive(obj)
-           // Frozen object should be convert to Immutable object also.
-           // || Object.isFrozen(obj)
-           || obj instanceof Immutable
-           || obj.constructor === Immutable;
-}
 
 export default Immutable;
