@@ -16,6 +16,7 @@ export default function mergeNode(target, source, deep = false) {
         return source;
     }
 
+    // TODO 处理value内的循环引用，直接忽略循环引用节点，最终由Immutable处理循环引用
     var changed = false;
     var targetCopy = cloneNode(target);
     Object.keys(source).forEach((key) => {

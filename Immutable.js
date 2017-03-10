@@ -14,6 +14,7 @@ import guid, {GUID_SENTINEL} from './utils/guid';
 
 import extractPath from './node/extractPath';
 import getNodeByPath from './node/getNodeByPath';
+import cloneNode from './node/cloneNode';
 import copyNodeByPath, {removeTheNode} from './node/copyNodeByPath';
 import mergeNode from './node/mergeNode';
 import forEachNode from './node/forEachNode';
@@ -35,6 +36,50 @@ const IMMUTABLE_PATH_LINK = '[[ImmutablePathLink]]';
 const IMMUTABLE_CYCLE_REF = '[[ImmutableCycleRef]]';
 const IMMUTABLE_DATE = '[[ImmutableDate]]';
 const IMMUTABLE_REGEXP = '[[ImmutableRegExp]]';
+
+function isCycleRef(obj) {
+    return hasOwn(obj, IMMUTABLE_CYCLE_REF);
+}
+
+/**
+ * Arrive the actual node following the cycle reference node.
+ */
+function extractImmutablePath(immutable, path) {
+    var extractedPath = extractPath(path);
+    if (!extractedPath || extractedPath.length === 0) {
+        return extractedPath;
+    }
+
+    var realPath = [];
+    var node = immutable;
+    // The cycle reference at the end of path should be checked also.
+    for (var i = 0; i <= extractedPath.length; i++) {
+        // Maybe some cycle reference was referenced by other,
+        // just follow cycle reference until to the real node,
+        // or unlimited recursion error is thrown.
+        while (isCycleRef(node)) {
+            // NOTE: The path is always starting from root node.
+            realPath = immutable.path(node.valueOf());
+
+            if (i < extractedPath.length) {
+                node = immutable.get(realPath);
+            } else {
+                break;
+            }
+        }
+
+        if (i < extractedPath.length) {
+            if (isPrimitive(node)) {
+                return null; // Broken path!
+            } else {
+                var key = extractedPath[i];
+                node = node[key];
+                realPath.push(key);
+            }
+        }
+    }
+    return realPath;
+}
 
 function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
     if (isImmutable(obj)) {
@@ -60,6 +105,15 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
                || (!!rootObjPathLink && rootObjPathLink[targetGUID]) /* depth cycle reference check */;
     }
 
+    function hasCycleRefs() {
+        for (var key in objPathLink) {
+            if (objPathLink[key].refer) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function bindValue(obj, value, key, enumerable) {
         // TODO Enable writing, but throw exception and suggestion in setter?
         Object.defineProperty(obj, key, {
@@ -71,8 +125,11 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
         if (!isPrimitive(value)) {
             objPathLink[guid(value)] = Object.freeze({
                 top: guid(obj),
-                path: key
+                path: key,
+                refer: isCycleRef(value)
             });
+            // TODO 如何处理挂载的Immutable子树中存在的循环引用？
+            // TODO 如何处理循环引用的循环引用成环问题？需要确保不出现引用环！！
             if (value[IMMUTABLE_PATH_LINK]) {
                 Object.assign(objPathLink, value[IMMUTABLE_PATH_LINK]());
             }
@@ -174,8 +231,9 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
             return hasOwn(this, IMMUTABLE_REGEXP);
         },
         isCycleRef: function () {
-            return hasOwn(this, IMMUTABLE_CYCLE_REF);
+            return isCycleRef(this);
         },
+        hasCycleRefs: () => hasCycleRefs(),
         /** Deeply check if the specified immutable is equal to `this`. */
         equals: function (other) {
             return Immutable.is(this, other);
@@ -209,9 +267,10 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          *          NOTE: If `path` is empty, just return the Immutable self.
          */
         get: function (path) {
-            var extractedPath = extractPath(path);
-            // TODO 将引用节点转换为其指向的节点
-            return getNodeByPath(this, extractedPath);
+            var extractedPath = extractImmutablePath(this, path);
+            var root = getNodeByPath(this, extractedPath);
+            // TODO 若子树还存在循环引用该如何处理？
+            return createInnerImmutable(root);
         },
         /**
          * Set new value to the target node or create a new node.
@@ -221,8 +280,9 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          * @return {Immutable} Return the Immutable self if the `path` is unreachable or empty.
          */
         set: function (path, value) {
-            var extractedPath = extractPath(path) || [];
-            // TODO 将引用节点转换为其指向的节点
+            // NOTE: Avoid to replace the root when the path is unreachable!
+            var extractedPath = extractImmutablePath(this, path);
+            // TODO 若value为Immutable，则其可能存在A引用当前Immutable内的B。注意：其内部的循环引用无需处理，但若是其引用了A，则最终需将其调整为引用B
             // Copy and create a new node, then make it immutable.
             // NOTE: Do not make value immutable directly,
             // the new immutable will collect path link and process cycle references.
@@ -234,12 +294,13 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          * Update the target node.
          *
          * @param {Array/String} path The array path, or string path split by `.`.
-         * @param {Function} updater The update function with signature `(value: Immutable) => *`.
+         * @param {Function} updater The update function
+         *          with signature `(node: Immutable, topKey, topNode: Immutable) => *`.
          *          If the updater return `undefined`, the target node will not be changed.
          *          If `path` is null or empty, the Immutable self will be passed to the updater.
          */
         update: function (path, updater) {
-            var extractedPath = extractPath(path) || [];
+            var extractedPath = extractImmutablePath(this, path);
             var root = this;
 
             if (isFunction(updater)) {
@@ -247,7 +308,7 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
                     root = updater(root);
                     root = root === undefined ? this : root;
                 } else {
-                    // TODO 将引用节点转换为其指向的节点
+                    // TODO 若目标节点内还存在循环引用，在updater里该如何处理？传入root，通过root更新子树？
                     root = copyNodeByPath(this, extractedPath, updater);
                 }
             }
@@ -282,9 +343,8 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          * @return {Immutable} If `path` is null, empty or unreachable, the Immutable self will be returned.
          */
         remove: function (path) {
-            var extractedPath = extractPath(path) || [];
-            // TODO 将引用节点转换为其指向的节点
-            var updater = (target, top, key) => hasOwn(top, key) ? removeTheNode(target) : undefined;
+            var extractedPath = extractImmutablePath(this, path);
+            var updater = (target, key, top) => hasOwn(top, key) ? removeTheNode(target) : undefined;
             var root = copyNodeByPath(this, extractedPath, updater);
 
             return createInnerImmutable(root);
@@ -296,7 +356,7 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          */
         clear: function () {
             var target = this.isArray() ? [] : {};
-            guid(target, objGUID);
+            guid(target, guid(this));
 
             return createInnerImmutable(target);
         },
@@ -304,7 +364,7 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          * Find the matched node.
          *
          * @param {Function} predicate A matching function
-         *          with signature `(node, topKey, topNode) => Boolean`
+         *          with signature `(node: Immutable, topKey, topNode: Immutable) => Boolean`
          * @return {Immutable/undefined} The matched node or `undefined` if no node matched.
          */
         find: function (predicate) {
@@ -325,7 +385,7 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          * Filter the matched properties.
          *
          * @param {Function} predicate A filter function
-         *          with signature `(node, topKey, topNode) => Boolean`
+         *          with signature `(node: Immutable, topKey, topNode: Immutable) => Boolean`
          * @return {Immutable}
          */
         filter: function (predicate) {
@@ -350,7 +410,7 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          *
          * @param {Array/String} [path] The array path, or string path split by `.`.
          * @param {Function} sideEffect A traverse function
-         *          with signature `(node, topKey, topNode, fullPath) => Boolean`.
+         *          with signature `(node: Immutable, topKey, topNode: Immutable, fullPath) => Boolean`.
          *          If it return `false`, the traversing will be stop.
          */
         forEach: function (path, sideEffect) {
@@ -359,14 +419,14 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
                 path = [];
             }
 
-            var extractedPath = extractPath(path);
-            // TODO 将引用节点转换为其指向的节点
+            var extractedPath = extractImmutablePath(this, path);
             forEachNode(this, extractedPath, sideEffect);
         },
         /**
          * Returns a new Array/Object with values passed through the `mapper`.
          *
-         * @param {Function} mapper Mapper function with signature `(value, key, this) => *`.
+         * @param {Function} mapper Mapper function
+         *          with signature `(value: Immutable, key, this) => *`.
          * @return {Immutable} If `mapper` isn't specified or no changes happened, return `this`.
          */
         map: function (mapper) {
@@ -390,7 +450,7 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          * and passing along the reduced value.
          *
          * @param {Function} reducer Reducer function
-         *          with signature `(reduction, value, key, this) => *`.
+         *          with signature `(reduction: Immutable, value: Immutable, key, this) => *`.
          * @param {*} initVal The initial value of reduction.
          * @return {Immutable} If `reducer` isn't specified, return `initVal`.
          */
@@ -408,33 +468,220 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
     };
 
     const arrayMethods = {
-        push: function () {
+        /**
+         * Put elements to the array tail.
+         *
+         * @param {...T} values
+         * @return {Immutable} If no arguments, return `this`.
+         */
+        push: function (...values) {
+            if (arguments.length === 0) {
+                return this;
+            }
+
+            var root = cloneNode(this);
+            Array.prototype.push.apply(root, arguments);
+
+            return createInnerImmutable(root);
         },
+        /**
+         * Remove the element at the array tail.
+         *
+         * @return {Immutable} If it's an empty immutable array, return `this`.
+         */
         pop: function () {
+            if (this.isEmpty()) {
+                return this;
+            }
+
+            var root = cloneNode(this);
+            root.pop();
+            return createInnerImmutable(root);
         },
-        unshift: function () {
+        /**
+         * Put elements to the array head.
+         *
+         * @param {...T} values
+         * @return {Immutable} If no arguments, return `this`.
+         */
+        unshift: function (...values) {
+            if (arguments.length === 0) {
+                return this;
+            }
+
+            var root = cloneNode(this);
+            Array.prototype.unshift.apply(root, arguments);
+
+            return createInnerImmutable(root);
         },
+        /**
+         * Remove the element at the array head.
+         *
+         * @return {Immutable} If it's an empty immutable array, return `this`.
+         */
         shift: function () {
+            if (this.isEmpty()) {
+                return this;
+            }
+
+            var root = cloneNode(this);
+            root.shift();
+            return createInnerImmutable(root);
         },
-        splice: function () {
+        /**
+         * Remove the specified count elements and insert new elements.
+         *
+         * @param {Number} [start]
+         * @param {Number} [removeNum]
+         * @param {...T} [values]
+         * @return {Immutable} If no arguments, return `this`.
+         */
+        splice: function (start, removeNum, ...values) {
+            if (arguments.length === 0) {
+                return this;
+            }
+
+            var root = cloneNode(this);
+            Array.prototype.splice.apply(root, arguments);
+
+            return createInnerImmutable(root);
         },
-        slice: function () {
+        /**
+         * Selects a part of an array, and returns the new array.
+         *
+         * @param {Number} [start]
+         * @param {Number} [end]
+         * @return {Immutable} If no arguments, return `this`.
+         */
+        slice: function (start, end) {
+            if (arguments.length === 0) {
+                return this;
+            }
+
+            var root = cloneNode(this);
+            root = Array.prototype.slice.apply(root, arguments);
+            guid(root, guid(this));
+
+            return createInnerImmutable(root);
         },
-        concat: function () {
+        /**
+         * Joins two or more arrays, and returns a copy of the joined arrays.
+         *
+         * @param {...T/T[]} [arrays]
+         * @return {Immutable} If no arguments, return `this`.
+         */
+        concat: function (...arrays) {
+            if (arguments.length === 0) {
+                return this;
+            }
+            arrays = arrays.map((array) => {
+                if (Immutable.isInstance(array) && array.isArray()) {
+                    array = cloneNode(array);
+                }
+                return array;
+            });
+
+            var root = cloneNode(this);
+            root = Array.prototype.concat.apply(root, arrays);
+            guid(root, guid(this));
+
+            return createInnerImmutable(root);
         },
-        insert: function () {
+        /**
+         * Insert new elements to the specified location.
+         *
+         * NOTE: If the inserted `values` is a big array,
+         * using `.insert()` will be better than `.splice()`.
+         *
+         * @param {Number} [index]
+         * @param {T/T[]} [values]
+         * @return {Immutable} If no arguments or `values` is empty, return `this`.
+         */
+        insert: function (index, values) {
+            if (arguments.length <= 1) {
+                return this;
+            }
+            if (Immutable.isInstance(values) && values.isArray()) {
+                values = cloneNode(values);
+            }
+
+            var root = cloneNode(this);
+            [].concat(values).forEach((value, i) => {
+                root.splice(index + i, 0, value);
+            });
+
+            return createInnerImmutable(root);
         },
-        sort: function () {
+        /**
+         * Sort the elements.
+         *
+         * @param {Function} [compareFn]
+         * @return {Immutable} If the size <= 1, return `this`.
+         */
+        sort: function (compareFn) {
+            if (this.size() <= 1) {
+                return this;
+            }
+
+            var root = cloneNode(this).sort(compareFn);
+            return createInnerImmutable(root);
         },
+        /**
+         * Reverse the elements.
+         *
+         * @return {Immutable} If the size <= 1, return `this`.
+         */
         reverse: function () {
+            if (this.size() <= 1) {
+                return this;
+            }
+
+            var root = cloneNode(this).reverse();
+            return createInnerImmutable(root);
         },
+        /**
+         * Return the first element.
+         *
+         * @return {*}
+         */
         first: function () {
+            return this[0];
         },
+        /**
+         * Return the last element.
+         *
+         * @return {*}
+         */
         last: function () {
+            return this.isEmpty() ? undefined : this[this.size() - 1];
         },
-        at: function () {
+        /**
+         * Return the element which is at `index`.
+         *
+         * @return {*}
+         */
+        at: function (index) {
+            return this[parseInt(index, 10)];
         },
-        findIndex: function () {
+        /**
+         * Find the location of matched element.
+         *
+         * @param {Function} predicate A matching function
+         *          with signature `(node: Immutable, topKey, topNode: Immutable) => Boolean`
+         * @return {Number} Return `-1` if no element matched.
+         */
+        findIndex: function (predicate) {
+            var index = -1;
+
+            if (isFunction(predicate)) {
+                this.forEach((node, topKey, topNode) => {
+                    if (predicate(node, topKey, topNode)) {
+                        index = topKey;
+                        return false;
+                    }
+                });
+            }
+            return index;
         },
         size: function () {
             return this.length;
