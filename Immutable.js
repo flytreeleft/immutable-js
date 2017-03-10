@@ -24,7 +24,7 @@ import forEachNode from './node/forEachNode';
  * - Primitive自身即为immutable，无需处理
  * - 支持将Date、RegExp转换为Plain object
  * - 支持通过外部函数对Function和复杂对象进行Plain转换
- * - 支持循环引用结构，并确保结构不丢失
+ * - 支持循环引用结构，并确保结构不丢失（循环引用检查始终在root进行）
  * - 支持对循环引用的更新，其最终在真实被引用对象上做变更
  * - 可快速定位到处于任意位置的对象，而无需遍历
  * - 可快速实施变更，而无需clone整个数据结构
@@ -50,12 +50,16 @@ function createImmutable(obj, options = {}/*, rootPathLink*/) {
         return obj;
     }
 
-    const rootPathLink = arguments[2];
     // Make sure the guid was bound to `obj`.
     const objGUID = guid(obj);
     // NOTE: Do not record current obj's path link.
     // Because the same immutable object may be referenced more than once.
+    const rootPathLink = arguments[2];
     const objPathLink = {};
+
+    // Hold current node in the root path link to
+    // detect the cycle reference in the depth direction at root node.
+    rootPathLink && (rootPathLink[objGUID] = {});
 
     function isCycleRefTo(target) {
         var targetGUID = guid(target);
@@ -466,7 +470,6 @@ function createImmutable(obj, options = {}/*, rootPathLink*/) {
             }
 
             var enumerable = isEnumerable(processedObj, key);
-            // TODO 需解决纵向循环引用问题
             var immutableValue = createInnerImmutable(value, rootPathLink || objPathLink);
             bindValue(immutableObj, immutableValue, key, enumerable);
         });
