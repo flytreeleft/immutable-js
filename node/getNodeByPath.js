@@ -1,8 +1,11 @@
 import isObject from '../utils/isObject';
 
 /**
- * @param {*} root
- * @param {Array} path
+ * Get target node object from `root` following the `path`.
+ *
+ * @param {*} root The root node of object tree.
+ * @param {Array} path The path of target node.
+ * @return {*}
  */
 export default function (root, path) {
     if (!path) {
