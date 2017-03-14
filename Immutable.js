@@ -1,6 +1,7 @@
 import invariant from 'invariant';
 
 import isPlainObject from './utils/isPlainObject';
+import isObject from './utils/isObject';
 import isArray from './utils/isArray';
 import isFunction from './utils/isFunction';
 import isDate from './utils/isDate';
@@ -44,7 +45,7 @@ function isCycleRef(obj) {
 /**
  * Arrive the actual node following the cycle reference node.
  */
-function extractImmutablePath(immutable, path) {
+function extractImmutablePath(immutable, path, untilToEnd = true) {
     var extractedPath = extractPath(path);
     if (!extractedPath || extractedPath.length === 0) {
         return extractedPath;
@@ -52,8 +53,7 @@ function extractImmutablePath(immutable, path) {
 
     var realPath = [];
     var node = immutable;
-    // The cycle reference at the end of path should be checked also.
-    for (var i = 0; i <= extractedPath.length; i++) {
+    for (var i = 0, len = extractedPath.length; untilToEnd ? i <= len : i < len; i++) {
         // Maybe some cycle reference was referenced by other,
         // just follow cycle reference until to the real node,
         // or unlimited recursion error is thrown.
@@ -236,7 +236,11 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
         hasCycleRefs: () => hasCycleRefs(),
         /** Deeply check if the specified immutable is equal to `this`. */
         equals: function (other) {
-            return Immutable.is(this, other);
+            return Immutable.equals(this, other);
+        },
+        /** @return {String[]} */
+        keys: function () {
+            return Object.keys(this);
         },
         /**
          * Get the array path of the specified node from the root node.
@@ -267,7 +271,7 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          *          NOTE: If `path` is empty, just return the Immutable self.
          */
         get: function (path) {
-            var extractedPath = extractImmutablePath(this, path);
+            var extractedPath = extractImmutablePath(this, path, false);
             var root = getNodeByPath(this, extractedPath);
             // TODO 若子树还存在循环引用该如何处理？
             return createInnerImmutable(root);
@@ -277,17 +281,22 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          *
          * @param {Array/String} path The array path, or string path split by `.`.
          * @param {*} value The new value which will replace the target node.
-         * @return {Immutable} Return the Immutable self if the `path` is unreachable or empty.
+         * @return {Immutable} Return the Immutable self if the `path` is unreachable.
          */
         set: function (path, value) {
             // NOTE: Avoid to replace the root when the path is unreachable!
-            var extractedPath = extractImmutablePath(this, path);
-            // TODO 若value为Immutable，则其可能存在A引用当前Immutable内的B。注意：其内部的循环引用无需处理，但若是其引用了A，则最终需将其调整为引用B
-            // Copy and create a new node, then make it immutable.
-            // NOTE: Do not make value immutable directly,
-            // the new immutable will collect path link and process cycle references.
-            var root = copyNodeByPath(this, extractedPath, () => value);
+            var extractedPath = extractImmutablePath(this, path, false);
 
+            var root;
+            if (extractedPath && extractedPath.length === 0) {
+                root = value;
+            } else {
+                // TODO 若value为Immutable，则其可能存在A引用当前Immutable内的B。注意：其内部的循环引用无需处理，但若是其引用了A，则最终需将其调整为引用B
+                // Copy and create a new node, then make it immutable.
+                // NOTE: Do not make value immutable directly,
+                // the new immutable will collect path link and process cycle references.
+                root = copyNodeByPath(this, extractedPath, () => value);
+            }
             return createInnerImmutable(root);
         },
         /**
@@ -344,6 +353,7 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          */
         remove: function (path) {
             var extractedPath = extractImmutablePath(this, path);
+            // TODO 若移除的包含被引用对象，该如何处理？
             var updater = (target, key, top) => hasOwn(top, key) ? removeTheNode(target) : undefined;
             var root = copyNodeByPath(this, extractedPath, updater);
 
@@ -771,11 +781,40 @@ Immutable.isInstance = (obj) => obj && (obj instanceof Immutable || obj.construc
  * @return {Immutable} Return an immutable object, or Array-like immutable object when `obj` is an array.
  */
 Immutable.create = (obj, options) => createImmutable(obj, options);
+/**
+ * Check if `source` and `other` represent a same object.
+ *
+ * NOTE: The same objects maybe isn't {@link #equals equal}.
+ *
+ * @return {Boolean}
+ */
+Immutable.same = (source, other) => isObject(source) && guid(source) === guid(other);
 // TODO 1. 返回diff格式的差异，以path为键值；2. 比较path link的增删节点；3. 比较相同id的immutable的属性是否存在差异，但不做深度比较
 Immutable.diff = (source, other) => ({});
 /**
- * Value equality check with semantics similar to `Object.is`.
+ * Deep value equality check.
+ *
+ * @return {Boolean}
  */
-Immutable.is = (source, other) => ({});
+Immutable.equals = (source, other) => {
+    if (isObject(source) && isObject(other) && source !== other) {
+        var sourceKeys = Object.keys(source).sort();
+        var otherKeys = Object.keys(other).sort();
+        // NOTE: Array-like object maybe equal to an actual array.
+        // TODO Immutable比较path link
+        if (sourceKeys.length === otherKeys.length) {
+            for (var i = 0; i < sourceKeys.length; i++) {
+                var sourceKey = sourceKeys[i];
+                var otherKey = otherKeys[i];
+
+                if (sourceKey !== otherKey
+                    || !Immutable.equals(source[sourceKey], other[otherKey])) {
+                    return false;
+                }
+            }
+        }
+    }
+    return source === other;
+};
 
 export default Immutable;
