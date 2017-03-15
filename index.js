@@ -1,5 +1,6 @@
 import Immutable from './Immutable';
 
+export {default as extractPath} from './node/extractPath';
 export {default as getNodeByPath} from './node/getNodeByPath';
 export {default as createNE} from './utils/createNE';
 export {default as valueOf} from './utils/valueOf';
@@ -12,5 +13,6 @@ export {default as isDate} from './utils/isDate';
 export {default as hasOwn} from './utils/hasOwn';
 export {default as isConfigurable} from './utils/isConfigurable';
 export {default as isWritable} from './utils/isWritable';
+export {default as guid} from './utils/guid';
 
 export default Immutable;
