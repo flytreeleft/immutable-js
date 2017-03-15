@@ -38,6 +38,10 @@ const IMMUTABLE_CYCLE_REF = '[[ImmutableCycleRef]]';
 const IMMUTABLE_DATE = '[[ImmutableDate]]';
 const IMMUTABLE_REGEXP = '[[ImmutableRegExp]]';
 
+function getPathLink(obj) {
+    return obj[IMMUTABLE_PATH_LINK] ? obj[IMMUTABLE_PATH_LINK]() : {};
+}
+
 function isCycleRef(obj) {
     return hasOwn(obj, IMMUTABLE_CYCLE_REF);
 }
@@ -125,14 +129,13 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
         if (!isPrimitive(value)) {
             objPathLink[guid(value)] = Object.freeze({
                 top: guid(obj),
-                path: key,
+                path: `${key}`,
                 refer: isCycleRef(value)
             });
             // TODO 如何处理挂载的Immutable子树中存在的循环引用？
             // TODO 如何处理循环引用的循环引用成环问题？需要确保不出现引用环！！
-            if (value[IMMUTABLE_PATH_LINK]) {
-                Object.assign(objPathLink, value[IMMUTABLE_PATH_LINK]());
-            }
+            var valuePathLink = getPathLink(value);
+            Object.assign(objPathLink, valuePathLink);
         }
     }
 
@@ -252,6 +255,28 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
         path: function (node) {
             var nodeGUID = isPrimitive(node) ? node : guid(node);
             return getPath(nodeGUID);
+        },
+        /**
+         * Get the relative path from `topNode` to `subNode`.
+         *
+         * @param {Object/String} [topNode] The guid of top node, or node self.
+         * @param {Object/String} [subNode] The guid of sub node, or node self.
+         * @return {Array/undefined} Return `[]` if two nodes are same,
+         *          otherwise return `undefined` if it's unreachable from `topNode` to `subNode`.
+         */
+        subPath: function (topNode, subNode) {
+            var topNodePath = this.path(topNode);
+            var subNodePath = this.path(subNode);
+
+            if (!topNodePath || !subNodePath) {
+                return undefined;
+            }
+            for (var i = 0; i < topNodePath.length; i++) {
+                if (topNodePath[i] !== subNodePath[i]) {
+                    return undefined;
+                }
+            }
+            return subNodePath.slice(topNodePath.length);
         },
         /**
          * Check if the specified node is on the object tree.
@@ -797,24 +822,26 @@ Immutable.diff = (source, other) => ({});
  * @return {Boolean}
  */
 Immutable.equals = (source, other) => {
-    if (isObject(source) && isObject(other) && source !== other) {
-        var sourceKeys = Object.keys(source).sort();
-        var otherKeys = Object.keys(other).sort();
-        // NOTE: Array-like object maybe equal to an actual array.
-        // TODO Immutable比较path link
-        if (sourceKeys.length === otherKeys.length) {
-            for (var i = 0; i < sourceKeys.length; i++) {
-                var sourceKey = sourceKeys[i];
-                var otherKey = otherKeys[i];
+    if (source === other || !isObject(source) || !isObject(other)) {
+        return source === other;
+    }
 
-                if (sourceKey !== otherKey
-                    || !Immutable.equals(source[sourceKey], other[otherKey])) {
-                    return false;
-                }
+    var sourceKeys = Object.keys(source).sort();
+    var otherKeys = Object.keys(other).sort();
+    // NOTE: Array-like object maybe equal to an actual array.
+    if (sourceKeys.length === otherKeys.length) {
+        for (var i = 0; i < sourceKeys.length; i++) {
+            var sourceKey = sourceKeys[i];
+            var otherKey = otherKeys[i];
+
+            if (sourceKey !== otherKey
+                || !Immutable.equals(source[sourceKey], other[otherKey])) {
+                return false;
             }
         }
+        return true;
     }
-    return source === other;
+    return false;
 };
 
 export default Immutable;
