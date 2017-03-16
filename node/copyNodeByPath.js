@@ -16,11 +16,6 @@ export function removeTheNode(node) {
  * Make a copy following the `path` from root,
  * and return the new copy of `root` if some changes happened.
  *
- * The `targetNodeProcessor` and `pathNodeProcessor` can return
- * a new node which is different from the passed on.
- * If no need to change the passed node, the processor function
- * can just return `undefined`.
- *
  * NOTE:
  * - If the target node isn't mutated, the `pathNodeProcessor`
  *   will not be called and the `root` will be returned;
@@ -63,8 +58,8 @@ export default function (root, path, targetNodeProcessor, pathNodeProcessor) {
     // Process the target node.
     var processedNode = targetNodeProcessor
         ? targetNodeProcessor(targetNode, topKey, topNode, path.slice())
-        : undefined;
-    if (processedNode !== undefined && processedNode !== targetNode) {
+        : targetNode;
+    if (processedNode !== targetNode) {
         targetNode = processedNode;
     } else { // No mutation
         return root;
@@ -97,8 +92,8 @@ export default function (root, path, targetNodeProcessor, pathNodeProcessor) {
             // Process the path node.
             processedNode = pathNodeProcessor
                 ? pathNodeProcessor(targetNode, topKey, topNode, path.slice(0, pathNodes.length))
-                : undefined;
-            if (processedNode !== undefined && processedNode !== targetNode) {
+                : targetNode;
+            if (processedNode !== targetNode) {
                 targetNode = processedNode;
                 if (shouldBeRemoved(targetNode)) {
                     continue; // Cut the node first.

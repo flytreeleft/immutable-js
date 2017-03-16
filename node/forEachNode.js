@@ -18,7 +18,9 @@ export default function (root, path, sideEffect) {
         return;
     }
 
-    var keys = Object.keys(target);
+    var keys = target.isArray && target.isArray()
+        ? Array.apply(null, new Array(target.size())).map((v, i) => i)
+        : Object.keys(target);
     for (var i = 0; i < keys.length; i++) {
         var key = keys[i];
         var value = target[key];

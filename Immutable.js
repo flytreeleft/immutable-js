@@ -241,9 +241,17 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
         equals: function (other) {
             return Immutable.equals(this, other);
         },
-        /** @return {String[]} */
+        /** Check if `this` and `other` represent a same object or not. */
+        same: function (other) {
+            return Immutable.same(this, other);
+        },
+        /**
+         * @return {String[]} Return the index of elements if the immutable self is an Array-like object.
+         */
         keys: function () {
-            return Object.keys(this);
+            return this.isArray()
+                ? Array.apply(null, new Array(this.size())).map((v, i) => i)
+                : Object.keys(this);
         },
         /**
          * Get the array path of the specified node from the root node.
@@ -290,15 +298,21 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
         /**
          * Get the target immutable node by the specified path.
          *
+         * If the `path` contains cycle reference node,
+         * it will be turn back to the real node and
+         * continue to search until to the target node.
+         *
+         * NOTE: The target node maybe contains cycle reference nodes,
+         * they can be processed when need.
+         *
          * @param {Array/String} path The array path, or string path split by `.`.
          * @return {Immutable/undefined} The immutable node,
          *          or `undefine` if the `path` cannot be reached.
-         *          NOTE: If `path` is empty, just return the Immutable self.
+         *          If `path` is empty, just return the Immutable self.
          */
         get: function (path) {
             var extractedPath = extractImmutablePath(this, path, false);
             var root = getNodeByPath(this, extractedPath);
-            // TODO 若子树还存在循环引用该如何处理？
             return createInnerImmutable(root);
         },
         /**
@@ -328,22 +342,29 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          * Update the target node.
          *
          * @param {Array/String} path The array path, or string path split by `.`.
-         * @param {Function} updater The update function
+         * @param {Function} targetNodeUpdater The target node update function
          *          with signature `(node: Immutable, topKey, topNode: Immutable) => *`.
-         *          If the updater return `undefined`, the target node will not be changed.
          *          If `path` is null or empty, the Immutable self will be passed to the updater.
+         * @param {Function} [pathNodeUpdater] The path node update function
+         *          with signature `(node: Immutable, topKey, topNode: Immutable) => *`.
          */
-        update: function (path, updater) {
+        update: function (path, targetNodeUpdater, pathNodeUpdater) {
             var extractedPath = extractImmutablePath(this, path);
             var root = this;
 
-            if (isFunction(updater)) {
+            if (isFunction(targetNodeUpdater)) {
                 if (extractedPath.length === 0) {
-                    root = updater(root);
-                    root = root === undefined ? this : root;
+                    root = targetNodeUpdater(root);
                 } else {
                     // TODO 若目标节点内还存在循环引用，在updater里该如何处理？传入root，通过root更新子树？
-                    root = copyNodeByPath(this, extractedPath, updater);
+                    root = copyNodeByPath(this, extractedPath, (node, topKey, topNode) => {
+                        // NOTE: The target node is immutable already.
+                        return targetNodeUpdater(node, topKey, topNode);
+                    }, pathNodeUpdater ? ((node, topKey, topNode) => {
+                        node = createInnerImmutable(node);
+                        topNode = createInnerImmutable(topNode);
+                        return pathNodeUpdater(node, topKey, topNode);
+                    }) : null);
                 }
             }
             return createInnerImmutable(root);
@@ -379,7 +400,7 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
         remove: function (path) {
             var extractedPath = extractImmutablePath(this, path);
             // TODO 若移除的包含被引用对象，该如何处理？
-            var updater = (target, key, top) => hasOwn(top, key) ? removeTheNode(target) : undefined;
+            var updater = (target, key, top) => hasOwn(top, key) ? removeTheNode(target) : target;
             var root = copyNodeByPath(this, extractedPath, updater);
 
             return createInnerImmutable(root);
@@ -780,7 +801,7 @@ function Immutable() {
  */
 Immutable.guid = guid;
 /**
- * Check whether `obj` is immutable or not.
+ * Check whether `obj` is an {@link Immutable} object or not.
  *
  * NOTE: `null`, `undefined` or any primitive are immutable too.
  *
