@@ -13,6 +13,7 @@ export {default as isDate} from './utils/isDate';
 export {default as hasOwn} from './utils/hasOwn';
 export {default as isConfigurable} from './utils/isConfigurable';
 export {default as isWritable} from './utils/isWritable';
+export {default as isEnumerable} from './utils/isEnumerable';
 export {default as guid} from './utils/guid';
 
 export default Immutable;
