@@ -498,6 +498,8 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
                 target[topKey] = newNode;
                 newNode !== node && (changed = true);
             });
+            // Remain the GUID as the source.
+            guid(target, guid(this));
 
             return changed ? createInnerImmutable(target) : this;
         },
@@ -796,6 +798,7 @@ function Immutable() {
  *
  * @param {Object} obj
  * @param {String} [id] A custom id which will be bound to `obj`.
+ * @param {Boolean} [enumerable=true] Bind id as enumerable property or not?
  * @return {String/Object} Return `obj` if the parameter `id` was specified,
  *          otherwise, return the id bound to `obj`.
  */
