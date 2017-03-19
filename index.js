@@ -10,6 +10,7 @@ export {default as isPlainObject} from './utils/isPlainObject';
 export {default as isFunction} from './utils/isFunction';
 export {default as isPrimitive} from './utils/isPrimitive';
 export {default as isDate} from './utils/isDate';
+export {default as isBoolean} from './utils/isBoolean';
 export {default as hasOwn} from './utils/hasOwn';
 export {default as isConfigurable} from './utils/isConfigurable';
 export {default as isWritable} from './utils/isWritable';
