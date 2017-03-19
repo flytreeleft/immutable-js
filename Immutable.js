@@ -769,8 +769,8 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
             if (isCycleRefTo(value)) {
                 value = {[IMMUTABLE_CYCLE_REF]: guid(value)};
             }
-
-            var enumerable = isEnumerable(processedObj, key);
+            // Make sure GUID was bound as enumerable property.
+            var enumerable = reservedKeys.indexOf(key) >= 0 || isEnumerable(processedObj, key);
             var immutableValue = createInnerImmutable(value, rootObjPathLink || objPathLink, rootObjGUID || objGUID);
             bindValue(immutableObj, immutableValue, key, enumerable);
         });
@@ -798,7 +798,7 @@ function Immutable() {
  *
  * @param {Object} obj
  * @param {String} [id] A custom id which will be bound to `obj`.
- * @param {Boolean} [enumerable=true] Bind id as enumerable property or not?
+ * @param {Boolean} [enumerable=false] Bind id as enumerable property or not?
  * @return {String/Object} Return `obj` if the parameter `id` was specified,
  *          otherwise, return the id bound to `obj`.
  */
