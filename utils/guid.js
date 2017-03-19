@@ -1,4 +1,5 @@
 import valueOf from './valueOf';
+import isBoolean from './isBoolean';
 
 const ID_LENGTH = 16;
 function next() {
@@ -28,13 +29,16 @@ function canBind(obj) {
  *
  * @param {Object} obj
  * @param {String} [id] A custom id which will be bound to `obj`.
- * @param {Boolean} [enumerable=true] Bind id as enumerable property or not?
+ * @param {Boolean} [enumerable=false] Bind id as enumerable property or not?
  * @return {String/Object} Return `obj` if the parameter `id` was specified,
  *          otherwise, return the id bound to `obj`.
  */
-export default function (obj, id, enumerable = true) {
+export default function (obj, id, enumerable = false) {
     if (!canBind(obj)) {
         return null;
+    }
+    if (isBoolean(id)) {
+        enumerable = id;
     }
 
     var value = valueOf(obj);
