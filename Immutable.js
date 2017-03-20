@@ -760,7 +760,10 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
     let immutableObj = Object.create(immutableProto);
 
     let reservedKeys = [GUID_SENTINEL];
-    let objKeys = Object.keys(processedObj).concat(isArrayObj ? ['length'] : []);
+    // Keep the immutable properties in the lower index to make sure to process them before others.
+    let objKeys = Object.keys(processedObj).concat(isArrayObj ? ['length'] : []).sort((key, other) => {
+        return Immutable.isInstance(processedObj[key]) ? -1 : Immutable.isInstance(processedObj[other]) ? 1 : 0;
+    });
     // NOTE: Make sure GUID was bound at first.
     reservedKeys
         .concat(objKeys)
