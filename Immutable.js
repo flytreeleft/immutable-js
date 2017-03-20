@@ -344,7 +344,7 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
          * @param {Array/String} path The array path, or string path split by `.`.
          * @param {Function} targetNodeUpdater The target node update function
          *          with signature `(node: Immutable, topKey, topNode: Immutable) => *`.
-         *          If `path` is null or empty, the Immutable self will be passed to the updater.
+         *          If `path` is empty, the Immutable self will be passed to the updater.
          * @param {Function} [pathNodeUpdater] The path node update function
          *          with signature `(node: Immutable, topKey, topNode: Immutable) => *`.
          */
@@ -353,7 +353,7 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
             var root = this;
 
             if (isFunction(targetNodeUpdater)) {
-                if (extractedPath.length === 0) {
+                if (extractedPath && extractedPath.length === 0) {
                     root = targetNodeUpdater(root);
                 } else {
                     // TODO 若目标节点内还存在循环引用，在updater里该如何处理？传入root，通过root更新子树？
