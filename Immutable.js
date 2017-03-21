@@ -119,7 +119,6 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
     }
 
     function bindValue(obj, value, key, enumerable) {
-        // TODO Enable writing, but throw exception and suggestion in setter?
         Object.defineProperty(obj, key, {
             enumerable: enumerable,
             value: value
@@ -136,6 +135,10 @@ function createImmutable(obj, options = {}/*, rootPathLink, rootGUID*/) {
             // TODO 如何处理循环引用的循环引用成环问题？需要确保不出现引用环！！
             var valuePathLink = getPathLink(value);
             Object.assign(objPathLink, valuePathLink);
+
+            // Hold all sub nodes in the root path link to
+            // detect the cycle references between different sub-tree.
+            rootObjPathLink && Object.assign(rootObjPathLink, objPathLink);
         }
     }
 
