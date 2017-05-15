@@ -1,11 +1,9 @@
 import valueOf from './valueOf';
 import isBoolean from './isBoolean';
 
-const ID_LENGTH = 16;
 function next() {
-    return require('crypto').randomBytes(ID_LENGTH)
-                            .toString('hex')
-                            .substr(0, ID_LENGTH);
+    var uuid = require('uuid/v4');
+    return uuid().replace(/-/g, '');
 }
 
 export const GUID_SENTINEL = '[[GlobalUniqueID]]';
