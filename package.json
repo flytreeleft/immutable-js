@@ -15,7 +15,7 @@
     "url": "https://github.com/flytreeleft/immutable-js.git"
   },
   "bugs": "https://github.com/flytreeleft/immutable-js/issues",
-  "main": "src/index.js",
+  "main": "dist/immutable.js",
   "files": [
     "dist",
     "src"
