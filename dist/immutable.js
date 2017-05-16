@@ -12,7 +12,7 @@
 		var a = factory();
 		for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
 	}
-})(this, (function() {
+})(this, function() {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -83,7 +83,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ ((function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -105,7 +105,7 @@ exports.default = function (obj) {
 
 module.exports = exports['default'];
 
-/***/ })),
+/***/ }),
 /* 1 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -398,14 +398,14 @@ exports.default = createNE;
 function createNE(attrs) {
     var ne = {};
 
-    Object.keys(attrs).forEach((function (attr) {
+    Object.keys(attrs).forEach(function (attr) {
         ne[attr] = {
             writable: true,
             configurable: true,
             enumerable: false,
             value: attrs[attr]
         };
-    }));
+    });
 
     return ne;
 }
@@ -976,9 +976,9 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
     (0, _guid2.default)(processedObj, objGUID);
 
     // Define prototype methods.
-    var privateMethods = _defineProperty({}, IMMUTABLE_PATH_LINK, (function () {
+    var privateMethods = _defineProperty({}, IMMUTABLE_PATH_LINK, function () {
         return Object.assign({}, objPathLink);
-    }));
+    });
 
     var commonMethods = {
         toString: function toString() {
@@ -1028,9 +1028,9 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
          * @return {String[]} Return the index of elements if the immutable self is an Array-like object.
          */
         keys: function keys() {
-            return this.isArray() ? Array.apply(null, new Array(this.size())).map((function (v, i) {
+            return this.isArray() ? Array.apply(null, new Array(this.size())).map(function (v, i) {
                 return i;
-            })) : Object.keys(this);
+            }) : Object.keys(this);
         },
         /**
          * Get the array path of the specified node from the root node.
@@ -1113,9 +1113,9 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
                 // Copy and create a new node, then make it immutable.
                 // NOTE: Do not make value immutable directly,
                 // the new immutable will collect path link and process cycle references.
-                root = (0, _copyNodeByPath2.default)(this, extractedPath, (function () {
+                root = (0, _copyNodeByPath2.default)(this, extractedPath, function () {
                     return value;
-                }));
+                });
             }
             return createInnerImmutable(root);
         },
@@ -1138,10 +1138,10 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
                     root = targetNodeUpdater(root);
                 } else {
                     // TODO 若目标节点内还存在循环引用，在updater里该如何处理？传入root，通过root更新子树？
-                    root = (0, _copyNodeByPath2.default)(this, extractedPath, (function (node, topKey, topNode) {
+                    root = (0, _copyNodeByPath2.default)(this, extractedPath, function (node, topKey, topNode) {
                         // NOTE: The target node is immutable already.
                         return targetNodeUpdater(node, topKey, topNode);
-                    }), pathNodeUpdater ? function (node, topKey, topNode) {
+                    }, pathNodeUpdater ? function (node, topKey, topNode) {
                         node = createInnerImmutable(node);
                         topNode = createInnerImmutable(topNode);
                         return pathNodeUpdater(node, topKey, topNode);
@@ -1211,14 +1211,14 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
 
             var expected;
             if ((0, _isFunction2.default)(predicate)) {
-                this.forEach((function (node, key) {
+                this.forEach(function (node, key) {
                     var accepted = predicate(node, key, _this);
 
                     if (accepted) {
                         expected = node;
                     }
                     return !accepted;
-                }));
+                });
             }
             return expected;
         },
@@ -1235,14 +1235,14 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
             var target = this.isArray() ? [] : {};
 
             if ((0, _isFunction2.default)(predicate)) {
-                this.forEach((function (node, key) {
+                this.forEach(function (node, key) {
                     var accepted = predicate(node, key, _this2);
 
                     if (accepted) {
                         var prop = (0, _isArray2.default)(target) ? target.length : key;
                         target[prop] = node;
                     }
-                }));
+                });
             }
             return createInnerImmutable(target);
         },
@@ -1279,12 +1279,12 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
 
             var changed = false;
             var target = this.isArray() ? [] : {};
-            this.forEach((function (node, topKey, topNode) {
+            this.forEach(function (node, topKey, topNode) {
                 var newNode = mapper(node, topKey, topNode);
 
                 target[topKey] = newNode;
                 newNode !== node && (changed = true);
-            }));
+            });
             // Remain the GUID as the source.
             (0, _guid2.default)(target, (0, _guid2.default)(this));
 
@@ -1303,10 +1303,10 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
             var target = initVal;
 
             if ((0, _isFunction2.default)(reducer)) {
-                this.forEach((function (node, topKey, topNode) {
+                this.forEach(function (node, topKey, topNode) {
                     target = createInnerImmutable(target);
                     target = reducer(target, node, topKey, topNode);
-                }));
+                });
             }
             return createInnerImmutable(target);
         }
@@ -1435,12 +1435,12 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
             if (arguments.length === 0) {
                 return this;
             }
-            arrays = arrays.map((function (array) {
+            arrays = arrays.map(function (array) {
                 if (Immutable.isInstance(array) && array.isArray()) {
                     array = (0, _cloneNode2.default)(array);
                 }
                 return array;
-            }));
+            });
 
             var root = (0, _cloneNode2.default)(this);
             root = Array.prototype.concat.apply(root, arrays);
@@ -1467,9 +1467,9 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
             }
 
             var root = (0, _cloneNode2.default)(this);
-            [].concat(values).forEach((function (value, i) {
+            [].concat(values).forEach(function (value, i) {
                 root.splice(index + i, 0, value);
-            }));
+            });
 
             return createInnerImmutable(root);
         },
@@ -1535,12 +1535,12 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
             var index = -1;
 
             if ((0, _isFunction2.default)(predicate)) {
-                this.forEach((function (node, topKey, topNode) {
+                this.forEach(function (node, topKey, topNode) {
                     if (predicate(node, topKey, topNode)) {
                         index = topKey;
                         return false;
                     }
-                }));
+                });
             }
             return index;
         },
@@ -1561,11 +1561,11 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
 
     var reservedKeys = [_guid.GUID_SENTINEL];
     // Keep the immutable properties in the lower index to make sure to process them before others.
-    var objKeys = Object.keys(processedObj).concat(isArrayObj ? ['length'] : []).sort((function (key, other) {
+    var objKeys = Object.keys(processedObj).concat(isArrayObj ? ['length'] : []).sort(function (key, other) {
         return Immutable.isInstance(processedObj[key]) ? -1 : Immutable.isInstance(processedObj[other]) ? 1 : 0;
-    }));
+    });
     // NOTE: Make sure GUID was bound at first.
-    reservedKeys.concat(objKeys).forEach((function (key) {
+    reservedKeys.concat(objKeys).forEach(function (key) {
         var value = processedObj[key];
         if (isCycleRefTo(value)) {
             value = _defineProperty({}, IMMUTABLE_CYCLE_REF, (0, _guid2.default)(value));
@@ -1574,7 +1574,7 @@ function createImmutable(obj) /*, rootPathLink, rootGUID*/{
         var enumerable = reservedKeys.indexOf(key) >= 0 || (0, _isEnumerable2.default)(processedObj, key);
         var immutableValue = createInnerImmutable(value, rootObjPathLink || objPathLink, rootObjGUID || objGUID);
         bindValue(immutableObj, immutableValue, key, enumerable);
-    }));
+    });
 
     // Not allow to add new properties or remove, change the existing properties.
     return Object.freeze(immutableObj);
@@ -1831,9 +1831,9 @@ exports.default = function (root, path, sideEffect) {
         return;
     }
 
-    var keys = target.isArray && target.isArray() ? Array.apply(null, new Array(target.size())).map((function (v, i) {
+    var keys = target.isArray && target.isArray() ? Array.apply(null, new Array(target.size())).map(function (v, i) {
         return i;
-    })) : Object.keys(target);
+    }) : Object.keys(target);
     for (var i = 0; i < keys.length; i++) {
         var key = keys[i];
         var value = target[key];
@@ -1913,14 +1913,14 @@ function mergeNode(target, source) {
     // TODO 处理value内的循环引用，直接忽略循环引用节点，最终由Immutable处理循环引用
     var changed = false;
     var targetCopy = (0, _cloneNode2.default)(target);
-    Object.keys(source).forEach((function (key) {
+    Object.keys(source).forEach(function (key) {
         if (reservedKeys.indexOf(key) >= 0 || target[key] === source[key]) {
             return;
         }
 
         targetCopy[key] = deep ? mergeNode(target[key], source[key], true) : source[key];
         changed = true;
-    }));
+    });
 
     return changed ? targetCopy : target;
 }
@@ -2049,7 +2049,7 @@ var invariant = function(condition, format, a, b, c, d, e, f) {
       var args = [a, b, c, d, e, f];
       var argIndex = 0;
       error = new Error(
-        format.replace(/%s/g, (function() { return args[argIndex++]; }))
+        format.replace(/%s/g, function() { return args[argIndex++]; })
       );
       error.name = 'Invariant Violation';
     }
@@ -2195,12 +2195,11 @@ module.exports = g;
 
 /***/ }),
 /* 30 */
-/***/ ((function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 module.exports = __webpack_require__(16);
 
 
-/***/ }))
+/***/ })
 /******/ ]);
-}));
-//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjpudWxsLCJzb3VyY2VzIjpbbnVsbF0sInNvdXJjZXNDb250ZW50IjpbbnVsbF0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBOzs7Ozs7Ozs7Ozs7OztTQWNTLENBQUE7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O09BdUVGLENBQUE7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7T0FzQkEsQ0FBQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7K0JBcVN3QixDQUFBOzs7Ozs7O0tBTzFCLENBQUE7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7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
+});
