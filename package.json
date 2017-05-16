@@ -15,13 +15,16 @@
     "url": "https://github.com/flytreeleft/immutable-js.git"
   },
   "bugs": "https://github.com/flytreeleft/immutable-js/issues",
-  "main": "dist/immutable.js",
+  "main": "lib/index.js",
   "files": [
-    "dist",
-    "src"
+    "src",
+    "lib",
+    "dist"
   ],
   "scripts": {
-    "build": "node build/build.js",
+    "build": "npm run build:lib && npm run build:umd",
+    "build:lib": "babel src --out-dir lib",
+    "build:umd": "node build/build.js",
     "build:docs": "",
     "test": "karma start build/karma.config.js",
     "test:cover": "",
